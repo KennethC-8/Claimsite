@@ -21,6 +21,7 @@ export default async function handler(
     orderNumber?: string
     email?: string
   }
+
   console.log('🔍 validate-order body:', { orderNumber, email })
 
   if (!orderNumber || !email) {
@@ -30,14 +31,17 @@ export default async function handler(
   }
 
   try {
-    // ensure the "name" query matches Shopify's order name (#1234)
-    const nameParam = orderNumber.startsWith('#')
-      ? orderNumber
-      : `#${orderNumber}`
+    const nameParam = orderNumber.startsWith('#') ? orderNumber : `#${orderNumber}`
+    
     const shopUrl = `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/2025-01/orders.json?name=${encodeURIComponent(
       nameParam
     )}`
-    console.log('➡️ Fetching Shopify URL:', shopUrl)
+
+    // 🟨 Add Debug Logs Here
+    console.log('🛠️ Debug Info:')
+    console.log('SHOPIFY_STORE_DOMAIN:', process.env.SHOPIFY_STORE_DOMAIN)
+    console.log('Access Token Exists:', !!process.env.SHOPIFY_ACCESS_TOKEN)
+    console.log('Final Shopify URL:', shopUrl)
 
     const shopRes = await fetch(shopUrl, {
       headers: {
@@ -45,16 +49,13 @@ export default async function handler(
         'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN!,
       },
     })
+
     const text = await shopRes.text()
     console.log('⬅️ Shopify raw response:', shopRes.status, text)
 
-    if (!shopRes.ok) {
-      return res
-        .status(500)
-        .json({ valid: false, message: 'Shopify lookup failed.' })
-    }
+    const data = JSON.parse(text)
+    const orders = data.orders
 
-    const { orders } = JSON.parse(text) as { orders: any[] }
     if (!orders || orders.length === 0) {
       return res
         .status(200)
